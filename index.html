@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<title>Kick &amp; Dribble</title>
+<link href="styles/index.css" rel="stylesheet"/>
+<script src="scripts/asteroid_10.12.js"></script>
+<script>
+var camera = null;
+var draw = null;
+var friction = 0.15;
+var startScreen = null;
+
+var initialized = false;
+
+var progress = {
+    loaded: 0,
+    total: 17
+};
+
+var scene;
+
+var attribute = {};
+var uniform = {};
+var mesh = {};
+var texture = {};
+
+var audio = {
+    dribble: new Audio("audio/dribble.ogv"),
+    fence: new Audio("audio/fence.ogv"),
+    hit: new Audio("audio/hit.ogv"),
+    kick: new Audio("audio/kick.ogv"),
+    wall: new Audio("audio/wall.ogv")
+};
+
+var image = {
+    box: new Image(),
+    bar: new Image(),
+    logo: new Image(),
+    play: new Image(),
+    instructions: new Image(),
+    options: new Image(),
+    credits: new Image(),
+    football: new Image(),
+    basketball: new Image(),
+    small: new Image(),
+    medium: new Image(),
+    large: new Image(),
+    back: new Image(),
+    kick: new Image(),
+    dribble: new Image(),
+    win: new Image(),
+    lose: new Image()
+};
+
+image.box.src = "images/box.png";
+image.bar.src = "images/bar.png";
+
+var basketball = {
+    camera: {
+        eye: [0, 12, -52],
+        center: [0, 6, -42],
+        up: [0, 1, 0]
+    },
+    displacement: [0, 2, -42],
+    motion: [0, 0, 0],
+    phase: 0,
+    pitch: 0,
+    roll: 0,
+    yaw: 180,
+    score: 0
+};
+
+var football = {
+    camera: {
+        eye: [0, 12, 55],
+        center: [0, 6, 45],
+        up: [0, 1, 0]
+    },
+    displacement: [0, 2, 45],
+    motion: [0, 0, 0],
+    pitch: 0,
+    roll: 0,
+    yaw: 0,
+    score: 0
+};
+
+var key = {
+    left: false,
+    up: false,
+    right: false,
+    down: false,
+    z: false,
+    x: false
+};
+
+audio.dribble.volume = 0.25;
+audio.fence.volume = 0.25;
+audio.hit.volume = 0.05;
+audio.wall.volume = 0.05;
+
+var doubleFire = false;
+
+function resetGame() {
+    camera = {
+        eye: [30, 12, 0],
+        center: [0, 6, 0],
+        up: [0, 1, 0]
+    };
+
+    basketball = {
+        camera: {
+            eye: [0, 12, -52],
+            center: [0, 6, -42],
+            up: [0, 1, 0]
+        },
+        displacement: [0, 2, -42],
+        motion: [0, 0, 0],
+        phase: 0,
+        pitch: 0,
+        roll: 0,
+        yaw: 180,
+        score: 0
+    };
+
+    football = {
+        camera: {
+            eye: [0, 12, 55],
+            center: [0, 6, 45],
+            up: [0, 1, 0]
+        },
+        displacement: [0, 2, 45],
+        motion: [0, 0, 0],
+        pitch: 0,
+        roll: 0,
+        yaw: 0,
+        score: 0
+    };
+}
+
+function loading(canvas, td, gl) {
+    var loaded = progress.loaded / progress.total;
+    var percentage = "Loading " + Math.floor(loaded * 100) + "%";
+
+    td.clearRect(0, 0, canvas.width, canvas.height);
+
+    td.fillStyle = "#D75A00";
+    td.font = '20px "Palatino Linotype"';
+
+    td.textAlign = "center";
+    td.textBaseline = "middle";
+
+    td.fillText(percentage, canvas.width / 2, (canvas.height / 2) - 20);
+
+    td.drawImage(image.bar, 120 - (loaded * 120), 0, 120, 12, (canvas.width - 120) / 2, (canvas.height - 12) / 2, 120, 12);
+    td.drawImage(image.box, (canvas.width - 123) / 2, (canvas.height - 12) / 2);
+
+    if (loaded == 1 && !doubleFire) {
+        doubleFire = true;
+
+        var painter = canvas.createPainter("title", titleScreen);
+
+        camera = {
+            eye: [30, 12, 0],
+            center: [0, 6, 0],
+            up: [0, 1, 0]
+        };
+
+        window.addEventListener("keydown", function (event) {
+            switch (event.keyCode) {
+            case 37:
+                key.left = true;
+                break;
+            case 38:
+                key.up = true;
+                break;
+            case 39:
+                key.right = true;
+                break;
+            case 40:
+                key.down = true;
+                break;
+            case 88:
+                key.x = true;
+                break;
+            case 90:
+                key.z = true;
+                break;
+            default:
+            }
+        }, false);
+
+        window.addEventListener("keyup", function (event) {
+            switch (event.keyCode) {
+            case 37:
+                key.left = false;
+                break;
+            case 38:
+                key.up = false;
+                break;
+            case 39:
+                key.right = false;
+                break;
+            case 40:
+                key.down = false;
+                break;
+            case 65:
+                key.a = false;
+                break;
+            case 68:
+                key.d = false;
+                break;
+            case 88:
+                key.x = false;
+                break;
+            case 90:
+                key.z = false;
+                break;
+            default:
+            }
+        }, false);
+
+        scene = setInterval(function () {
+            painter.paint();
+        }, 40);
+    }
+}
+
+function titleScreen(canvas, td, gl) {
+    if (!initialized) {
+        image.logo.src = "images/logo.png";
+        image.play.src = "images/play.png";
+        image.instructions.src = "images/instructions.png";
+        image.options.src = "images/options.png";
+        image.credits.src = "images/credits.png";
+        image.football.src = "images/football.png";
+        image.basketball.src = "images/basketball.png";
+        image.small.src = "images/small.png";
+        image.medium.src = "images/medium.png";
+        image.large.src = "images/large.png";
+        image.back.src = "images/back.png";
+        image.kick.src = "images/kick.png";
+        image.dribble.src = "images/dribble.png";
+        image.win.src = "images/win.png";
+        image.lose.src = "images/lose.png";
+
+        canvas.createPainter("play", playScreen);
+        canvas.createPainter("instructions", instructionScreen);
+        canvas.createPainter("options", optionScreen);
+        canvas.createPainter("credits", creditsScreen);
+
+        canvas.createPainter("football", footballGame);
+        canvas.createPainter("basketball", basketballGame);
+
+        gl.clearColor(0, 0, 0, 1);
+        gl.clearDepth(1)
+
+        gl.enable(gl.DEPTH_TEST);
+
+        gl.depthFunc(gl.LEQUAL);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+        var program = gl.getProgram("normal");
+
+        gl.useProgram(program);
+
+        attribute.vertexCoord = program.getAttribute("vertexCoord");
+        attribute.position = program.getAttribute("position");
+        attribute.normal = program.getAttribute("normal");
+        attribute.tangent = program.getAttribute("tangent");
+        attribute.bitangent = program.getAttribute("bitangent");
+
+        uniform.lightPosition = program.getUniform("lightPosition");
+        uniform.perspectiveMatrix = program.getUniform("perspectiveMatrix");
+        uniform.modelViewMatrix = program.getUniform("modelViewMatrix");
+        uniform.normalMatrix = program.getUniform("normalMatrix");
+        uniform.textureMap = program.getUniform("textureMap");
+        uniform.normalMap = program.getUniform("normalMap");
+        uniform.ambientColor = program.getUniform("ambientColor");
+        uniform.diffuseColor = program.getUniform("diffuseColor");
+        uniform.specularColor = program.getUniform("specularColor");
+        uniform.shininess = program.getUniform("shininess");
+
+        mesh.floor = gl.getModel("floor");
+        mesh.wall = gl.getModel("wall");
+        mesh.alley = gl.getModel("alley");
+        mesh.fence = gl.getModel("fence");
+        mesh.football = gl.getModel("football");
+        mesh.basketball = gl.getModel("basketball");
+
+        texture.floorColor = gl.getTexture("floor_texture");
+        texture.floorNormal = gl.getTexture("floor_normal");
+
+        texture.wallColor = gl.getTexture("wall_texture");
+        texture.wallNormal = gl.getTexture("wall_normal");
+
+        texture.alleyColor = gl.getTexture("alley_texture");
+        texture.alleyNormal = gl.getTexture("alley_normal");
+
+        texture.fenceColor = gl.getTexture("fence_texture");
+        texture.fenceNormal = gl.getTexture("fence_normal");
+
+        texture.footballColor = gl.getTexture("football_texture");
+        texture.footballNormal = gl.getTexture("football_normal");
+
+        texture.basketballColor = gl.getTexture("basketball_texture");
+        texture.basketballNormal = gl.getTexture("basketball_normal");
+
+        draw = function(model, modelTexture, modelNormal) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, model.positions);
+            gl.vertexAttribPointer(attribute.position, 3, gl.FLOAT, false, 0, 0);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, model.texcoords);
+            gl.vertexAttribPointer(attribute.vertexCoord, 2, gl.FLOAT, false, 0, 0);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, model.normals);
+            gl.vertexAttribPointer(attribute.normal, 3, gl.FLOAT, false, 0, 0);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, model.tangents);
+            gl.vertexAttribPointer(attribute.tangent, 3, gl.FLOAT, false, 0, 0);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, model.bitangents);
+            gl.vertexAttribPointer(attribute.bitangent, 3, gl.FLOAT, false, 0, 0);
+
+            gl.uniform3f(uniform.lightPosition, 0, 10, 0);
+
+            gl.setNormal();
+
+            gl.uniformMatrix4fv(uniform.perspectiveMatrix, false, new Float32Array(gl.perspective.vectorize()));
+            gl.uniformMatrix4fv(uniform.modelViewMatrix, false, new Float32Array(gl.modelView.vectorize()));
+            gl.uniformMatrix3fv(uniform.modelViewMatrix, false, new Float32Array(gl.normalMatrix.vectorize()));
+
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, modelTexture);
+            gl.uniform1i(uniform.textureMap, 0);
+
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, modelNormal);
+            gl.uniform1i(uniform.normalMap, 1);
+
+            gl.uniform3f(uniform.ambientColor, 0.9, 0.9, 0.9);
+            gl.uniform3f(uniform.diffuseColor, 1, 1, 1);
+            gl.uniform3f(uniform.specularColor, 1, 1, 1);
+
+            gl.uniform1f(uniform.shininess, 4);
+
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, model.indices);
+
+            gl.drawElements(gl.TRIANGLES, model.length, gl.UNSIGNED_SHORT, 0);
+        };
+
+        startScreen = function () {
+            football.yaw += 12;
+            if (football.yaw == 360) {
+                football.yaw = 0;
+            }
+
+            basketball.motion = [0, 0, 0];
+
+            basketball.phase += 12;
+
+            if (basketball.phase == 180) {
+                basketball.phase = 0;
+                audio.dribble.play();
+            };
+
+            var bounce = 2 + 10 * Math.sin(basketball.phase * Math.PI / 180);
+            basketball.displacement[1] += bounce - basketball.displacement[1];
+
+            gl.disable(gl.BLEND);
+
+            gl.viewport(0, 0, canvas.width, canvas.height);
+
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+            gl.setIdentity();
+
+            gl.Perspective(90, canvas.width / canvas.height, 0.1, 1000);
+
+            gl.LookAt(camera.eye, camera.center, camera.up);
+
+            draw(mesh.floor, texture.floorColor, texture.floorNormal);
+            draw(mesh.wall, texture.wallColor, texture.wallNormal);
+            draw(mesh.alley, texture.alleyColor, texture.alleyNormal);
+
+            gl.save();
+
+            gl.Translate(basketball.displacement[0], basketball.displacement[1], basketball.displacement[2]);
+            gl.RotateX(basketball.pitch);
+            gl.RotateZ(basketball.roll);
+            gl.RotateY(basketball.yaw);
+
+            draw(mesh.basketball, texture.basketballColor, texture.basketballNormal);
+
+            gl.restore();
+
+            gl.save();
+
+            gl.Translate(football.displacement[0], football.displacement[1], football.displacement[2]);
+            gl.RotateX(football.pitch);
+            gl.RotateZ(football.roll);
+            gl.RotateY(football.yaw);
+
+            draw(mesh.football, texture.footballColor, texture.footballNormal);
+
+            gl.restore();
+
+            gl.enable(gl.BLEND);
+
+            draw(mesh.fence, texture.fenceColor, texture.fenceNormal);
+        };
+
+        initialized = true;
+    }
+
+    td.clearRect(0, 0, canvas.width, canvas.height);
+
+    var x = (canvas.width - 235) / 2;
+
+    td.drawImage(image.logo, (canvas.width - image.logo.width) / 2, 0);
+    td.drawImage(image.play, x, 81);
+    td.drawImage(image.instructions, x, 142);
+    td.drawImage(image.options, x, 203);
+    td.drawImage(image.credits, x, 261);
+
+    var painter = canvas.getPainter("title");
+
+    painter.addPath("play", [
+        ["rect", x, 81, 235, 55],
+    ], false).click = function () {
+        clearInterval(scene);
+
+        td.canvas.style.cursor = "default";
+
+        scene = setInterval(function () {
+            canvas.getPainter("play").paint();
+        }, 40);
+    };
+
+    painter.addPath("instructions", [
+        ["rect", x, 142, 235, 55],
+    ], false).click = function () {
+        clearInterval(scene);
+
+        td.canvas.style.cursor = "default";
+
+        scene = setInterval(function () {
+            canvas.getPainter("instructions").paint();
+        }, 40);
+    };
+
+    painter.addPath("options", [
+        ["rect", x, 203, 235, 55],
+    ], false).click = function () {
+        clearInterval(scene);
+
+        td.canvas.style.cursor = "default";
+
+        scene = setInterval(function () {
+            canvas.getPainter("options").paint();
+        }, 40);
+    };
+
+    painter.addPath("credits", [
+        ["rect", x, 261, 235, 55],
+    ], false).click = function () {
+        clearInterval(scene);
+
+        td.canvas.style.cursor = "default";
+
+        scene = setInterval(function () {
+            canvas.getPainter("credits").paint();
+        }, 40);
+    };
+
+    startScreen();
+}
+
+function playScreen(canvas, td, gl) {
+    td.clearRect(0, 0, canvas.width, canvas.height);
+
+    var x = (canvas.width - 235) / 2;
+
+    td.drawImage(image.logo, (canvas.width - image.logo.width) / 2, 0);
+    td.drawImage(image.football, x, 81);
+    td.drawImage(image.basketball, x, 142);
+    td.drawImage(image.back, x, 203);
+
+    var painter = canvas.getPainter("play");
+
+    painter.addPath("football", [
+        ["rect", x, 81, 235, 55],
+    ], false).click = function () {
+        clearInterval(scene);
+
+        td.canvas.style.cursor = "default";
+
+        camera = football.camera;
+        football.yaw = 0;
+
+        scene = setInterval(function () {
+            canvas.getPainter("football").paint();
+        }, 40);
+    };
+
+    painter.addPath("basketball", [
+        ["rect", x, 142, 235, 55],
+    ], false).click = function () {
+        clearInterval(scene);
+
+        td.canvas.style.cursor = "default";
+
+        camera = basketball.camera;
+
+        scene = setInterval(function () {
+            canvas.getPainter("basketball").paint();
+        }, 40);
+    };
+
+    painter.addPath("back", [
+        ["rect", x, 203, 235, 55],
+    ], false).click = function () {
+        clearInterval(scene);
+
+        td.canvas.style.cursor = "default";
+
+        scene = setInterval(function () {
+            canvas.getPainter("title").paint();
+        }, 40);
+    };
+
+    startScreen();
+}
+
+function instructionScreen(canvas, td, gl) {
+    td.clearRect(0, 0, canvas.width, canvas.height);
+
+    var x = (canvas.width - 235) / 2;
+
+    td.drawImage(image.logo, (canvas.width - image.logo.width) / 2, 0);
+    td.drawImage(image.back, x, 81);
+
+    var painter = canvas.getPainter("instructions");
+
+    painter.addPath("back", [
+        ["rect", x, 81, 235, 55],
+    ], false).click = function () {
+        clearInterval(scene);
+
+        td.canvas.style.cursor = "default";
+
+        scene = setInterval(function () {
+            canvas.getPainter("title").paint();
+        }, 40);
+    };
+
+    startScreen();
+}
+
+function optionScreen(canvas, td, gl) {
+    td.clearRect(0, 0, canvas.width, canvas.height);
+
+    var x = (canvas.width - 235) / 2;
+
+    td.drawImage(image.logo, (canvas.width - image.logo.width) / 2, 0);
+    td.drawImage(image.small, x, 81);
+    td.drawImage(image.medium, x, 142);
+    td.drawImage(image.large, x, 203);
+    td.drawImage(image.back, x, 261);
+
+    var painter = canvas.getPainter("options");
+
+    painter.addPath("small", [
+        ["rect", x, 81, 235, 55],
+    ], false).click = function () {
+        canvas.resize(800);
+    };
+
+    painter.addPath("medium", [
+        ["rect", x, 142, 235, 55],
+    ], false).click = function () {
+        canvas.resize(1024);
+    };
+
+    painter.addPath("large", [
+        ["rect", x, 203, 235, 55],
+    ], false).click = function () {
+        canvas.resize(1280);
+    };
+
+    painter.addPath("back", [
+        ["rect", x, 261, 235, 55],
+    ], false).click = function () {
+        clearInterval(scene);
+
+        td.canvas.style.cursor = "default";
+
+        scene = setInterval(function () {
+            canvas.getPainter("title").paint();
+        }, 40);
+    };
+
+    startScreen();
+}
+
+function creditsScreen(canvas, td, gl) {
+    td.clearRect(0, 0, canvas.width, canvas.height);
+
+    var x = (canvas.width - 235) / 2;
+
+    td.drawImage(image.logo, (canvas.width - image.logo.width) / 2, 0);
+    td.drawImage(image.back, x, 81);
+
+    var painter = canvas.getPainter("credits");
+
+    painter.addPath("back", [
+        ["rect", x, 81, 235, 55],
+    ], false).click = function () {
+        clearInterval(scene);
+
+        td.canvas.style.cursor = "default";
+
+        scene = setInterval(function () {
+            canvas.getPainter("title").paint();
+        }, 40);
+    };
+
+    startScreen();
+}
+
+function footballGame(canvas, td, gl) {
+    td.clearRect(0, 0, canvas.width, canvas.height);
+
+    basketball.motion = [0, 0, 0];
+
+    if (football.motion[0] > 0) {
+        football.motion[0] -= (football.motion[0] < friction) ? football.motion[0] : friction;
+    } else if (football.motion[0] < 0) {
+        football.motion[0] -= (football.motion[0] > -friction) ? football.motion[0] : -friction;
+    }
+
+    if (football.motion[2] > 0) {
+        football.motion[2] -= (football.motion[2] < friction) ? football.motion[2] : friction;
+    } else if (football.motion[2] < 0) {
+        football.motion[2] -= (football.motion[2] > -friction) ? football.motion[2] : -friction;
+    }
+
+    basketball.phase += 12;
+
+    if (basketball.phase == 180) {
+        basketball.phase = 0;
+        audio.dribble.play();
+    };
+
+    var bounce = 2 + 10 * Math.sin(basketball.phase * Math.PI / 180);
+    basketball.motion[1] = bounce - basketball.displacement[1];
+
+    if (key.left) {
+        football.yaw += 12;
+        football.yaw -= (football.yaw == 360) ? 360 : 0;
+    }
+
+    if (key.right) {
+        football.yaw -= 12;
+        football.yaw += (football.yaw < 0) ? 360 : 0;
+    }
+
+    var heading = football.yaw * Math.PI / 180;
+
+    var speed = 0.4;
+
+    if (key.up) {
+        var direction = heading + Math.PI;
+        football.motion = football.motion.plus([Math.sin(direction) * speed, 0, Math.cos(direction) * speed]);
+    }
+
+    if (key.down) {
+        football.motion = football.motion.plus([Math.sin(heading) * speed, 0, Math.cos(heading) * speed]);
+    }
+
+    if (key.z) {
+        var direction = heading - Math.PI / 2;
+        football.motion = football.motion.plus([Math.sin(direction) * speed, 0, Math.cos(direction) * speed]);
+    }
+
+    if (key.x) {
+        var direction = heading + Math.PI / 2;
+        football.motion = football.motion.plus([Math.sin(direction) * speed, 0, Math.cos(direction) * speed]);
+    }
+
+    var actionVector = basketball.displacement.minus(football.displacement);
+
+    if (actionVector.magnitude() <= 4) {
+        var reactionVector = actionVector.scale(-1);
+
+        var basketballForce = reactionVector.unit().scale(basketball.motion.scale(basketball.motion.cosFrom(reactionVector) || 0).magnitude());
+        var footballForce = actionVector.unit().scale(football.motion.scale(football.motion.cosFrom(actionVector) || 0).magnitude());
+
+        var dribbleMagnitude = basketballForce.magnitude();
+        var kickMagnitude = footballForce.magnitude();
+
+        if (dribbleMagnitude > kickMagnitude) {
+            basketball.score += basketballForce.minus(footballForce).magnitude();
+            if (basketball.score > 100) {
+                basketball.score = 100;
+            }
+        } else if (kickMagnitude > dribbleMagnitude) {
+            football.score += footballForce.minus(basketballForce).magnitude();
+            if (football.score > 100) {
+                football.score = 100;
+            }
+        }
+
+        basketball.motion = basketball.motion.plus(footballForce);
+
+        football.motion = football.motion.plus(basketballForce);
+        football.motion[1] = 0;
+
+        audio.hit.play();
+    }
+
+    td.drawImage(image.kick, 50, 50);
+    td.drawImage(image.dribble, canvas.width - 150, 50);
+
+    var painter = canvas.getPainter("football");
+
+    if (basketball.score === 100) {
+        var x = (canvas.width - image.lose.width) / 2;
+        td.drawImage(image.lose, x, 0);
+
+        painter.addPath("lose", [
+            ["rect", x, 0, image.lose.width, image.lose.height],
+        ], false).click = function () {
+            resetGame();
+
+            clearInterval(scene);
+
+            td.canvas.style.cursor = "default";
+
+            scene = setInterval(function () {
+                canvas.getPainter("title").paint();
+            }, 40);
+        };
+    } else if (football.score === 100) {
+        var x = (canvas.width - image.win.width) / 2;
+        td.drawImage(image.win, x, 0);
+
+        painter.addPath("win", [
+            ["rect", x, 0, image.win.width, image.win.height],
+        ], false).click = function () {
+            resetGame();
+
+            clearInterval(scene);
+
+            td.canvas.style.cursor = "default";
+
+            scene = setInterval(function () {
+                canvas.getPainter("title").paint();
+            }, 40);
+        };
+    }
+
+    var footballGradient = td.createRadialGradient(100, 100, 65, 100, 100, 75);
+    footballGradient.addColorStop(0, "#FF912C");
+    footballGradient.addColorStop(1, "#F27004");
+    td.fillStyle = footballGradient;
+
+    var footballBar;
+
+    switch (football.score) {
+    case 0:
+        footballBar = 0;
+        break;
+    case 100:
+        footballBar = 2 * Math.PI;
+        break;
+    default:
+        footballBar = 2 * Math.PI - football.score * Math.PI / 50;
+    }
+
+    td.beginPath();
+    td.arc(100, 100, 60, 0, footballBar, true);
+    td.arc(100, 100, 80, footballBar, 0, false);
+    td.closePath();
+    td.fill();
+
+    var x = canvas.width - 100
+
+    var basketballBar;
+
+    switch (basketball.score) {
+    case 0:
+        basketballBar = 0;
+        break;
+    case 100:
+        basketballBar = 2 * Math.PI;
+        break;
+    default:
+        basketballBar = 2 * Math.PI - basketball.score * Math.PI / 50;
+    }
+
+    var basketballGradient = td.createRadialGradient(x, 100, 65, x, 100, 75);
+    basketballGradient.addColorStop(0, "#FF912C");
+    basketballGradient.addColorStop(1, "#F27004");
+    td.fillStyle = basketballGradient;
+
+    td.beginPath();
+    td.arc(x, 100, 60, 0, basketballBar, true);
+    td.arc(x, 100, 80, basketballBar, 0, false);
+    td.closePath();
+    td.fill();
+
+    football.pitch += football.motion[2] * 100;
+    if (football.pitch < 0) {
+        football.pitch += 360;
+    } else if (football.pitch >= 360) {
+        football.pitch -= 360;
+    }
+
+    football.roll += football.motion[0] * 100;
+    if (football.roll < 0) {
+        football.roll += 360;
+    } else if (football.roll >= 360) {
+        football.roll -= 360;
+    }
+
+    basketball.displacement = basketball.displacement.plus(basketball.motion);
+    football.displacement = football.displacement.plus(football.motion);
+
+    camera.center[0] += football.motion[0];
+    camera.center[2] += football.motion[2];
+
+    if (basketball.displacement[0] > 38) {
+        basketball.displacement[0] = 38;
+        audio.fence.play();
+    } else if (basketball.displacement[0] < -38) {
+        basketball.displacement[0] = -38;
+    }
+
+    if (basketball.displacement[2] > 78) {
+        basketball.displacement[2] = 78;
+    } else if (basketball.displacement[2] < -78) {
+        basketball.displacement[2] = -78;
+    }
+
+    if (football.displacement[0] > 38) {
+        football.displacement[0] = camera.center[0] = 38;
+        football.motion = [-1, 0, 0].reflect(football.motion);
+        audio.fence.play();
+    } else if (football.displacement[0] < -38) {
+        football.displacement[0] = camera.center[0] = -38;
+        football.motion = [1, 0, 0].reflect(football.motion);
+        audio.wall.play();
+    }
+
+    if (football.displacement[2] > 78) {
+        football.displacement[2] = camera.center[2] = 78;
+        football.motion = [0, 0, -1].reflect(football.motion);
+        audio.wall.play();
+    } else if (football.displacement[2] < -78) {
+        football.displacement[2] = camera.center[2] = -78;
+        football.motion = [0, 0, 1].reflect(football.motion);
+        audio.wall.play();
+    }
+
+    camera.eye[0] = (Math.sin(heading) * 10) + camera.center[0];
+    camera.eye[2] = (Math.cos(heading) * 10) + camera.center[2];
+
+    gl.disable(gl.BLEND);
+
+    gl.viewport(0, 0, canvas.width, canvas.height);
+
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    gl.setIdentity();
+
+    gl.Perspective(90, canvas.width / canvas.height, 0.1, 1000);
+
+    gl.LookAt(camera.eye, camera.center, camera.up);
+
+    draw(mesh.floor, texture.floorColor, texture.floorNormal);
+    draw(mesh.wall, texture.wallColor, texture.wallNormal);
+    draw(mesh.alley, texture.alleyColor, texture.alleyNormal);
+
+    gl.save();
+
+    gl.Translate(basketball.displacement[0], basketball.displacement[1], basketball.displacement[2]);
+    gl.RotateX(basketball.pitch);
+    gl.RotateZ(basketball.roll);
+    gl.RotateY(basketball.yaw);
+
+    draw(mesh.basketball, texture.basketballColor, texture.basketballNormal);
+
+    gl.restore();
+
+    gl.save();
+
+    gl.Translate(football.displacement[0], football.displacement[1], football.displacement[2]);
+    gl.RotateX(football.pitch);
+    gl.RotateZ(football.roll);
+    gl.RotateY(football.yaw);
+
+    draw(mesh.football, texture.footballColor, texture.footballNormal);
+
+    gl.restore();
+
+    gl.enable(gl.BLEND);
+
+    draw(mesh.fence, texture.fenceColor, texture.fenceNormal);
+}
+
+function basketballGame(canvas, td, gl) {
+    td.clearRect(0, 0, canvas.width, canvas.height);
+
+    basketball.motion[1] = 0;
+
+    if (basketball.motion[0] > 0) {
+        basketball.motion[0] -= (basketball.motion[0] < friction) ? basketball.motion[0] : friction;
+    } else if (basketball.motion[0] < 0) {
+        basketball.motion[0] -= (basketball.motion[0] > -friction) ? basketball.motion[0] : -friction;
+    }
+
+    if (basketball.motion[2] > 0) {
+        basketball.motion[2] -= (basketball.motion[2] < friction) ? basketball.motion[2] : friction;
+    } else if (basketball.motion[2] < 0) {
+        basketball.motion[2] -= (basketball.motion[2] > -friction) ? basketball.motion[2] : -friction;
+    }
+
+    if (football.motion[0] > 0) {
+        football.motion[0] -= (football.motion[0] < friction) ? football.motion[0] : friction;
+    } else if (football.motion[0] < 0) {
+        football.motion[0] -= (football.motion[0] > -friction) ? football.motion[0] : -friction;
+    }
+
+    if (football.motion[2] > 0) {
+        football.motion[2] -= (football.motion[2] < friction) ? football.motion[2] : friction;
+    } else if (football.motion[2] < 0) {
+        football.motion[2] -= (football.motion[2] > -friction) ? football.motion[2] : -friction;
+    }
+
+    basketball.phase += 12;
+
+    if (basketball.phase == 180) {
+        basketball.phase = 0;
+        audio.dribble.play();
+    };
+
+    var bounce = 2 + 10 * Math.sin(basketball.phase * Math.PI / 180);
+    basketball.motion[1] = bounce - basketball.displacement[1];
+
+    if (key.left) {
+        basketball.yaw += 12;
+        basketball.yaw -= (basketball.yaw == 360) ? 360 : 0;
+    }
+
+    if (key.right) {
+        basketball.yaw -= 12;
+        basketball.yaw += (basketball.yaw < 0) ? 360 : 0;
+    }
+
+    var heading = basketball.yaw * Math.PI / 180;
+
+    var speed = 0.3;
+
+    if (key.up) {
+        basketball.pitch += 12;
+        var direction = heading + Math.PI;
+        basketball.motion = basketball.motion.plus([Math.sin(direction) * speed, 0, Math.cos(direction) * speed]);
+        basketball.pitch -= (basketball.pitch == 360) ? 360 : 0;
+    }
+
+    if (key.down) {
+        basketball.pitch -= 12;
+        basketball.motion = basketball.motion.plus([Math.sin(heading) * speed, 0, Math.cos(heading) * speed]);
+        basketball.pitch += (basketball.pitch < 0) ? 360 : 0;
+    }
+
+    if (key.z) {
+        basketball.roll += 12;
+        var direction = heading - Math.PI / 2;
+        basketball.motion = basketball.motion.plus([Math.sin(direction) * speed, 0, Math.cos(direction) * speed]);
+        basketball.roll -= (basketball.roll == 360) ? 360 : 0;
+    }
+
+    if (key.x) {
+        basketball.roll -= 12;
+        var direction = heading + Math.PI / 2;
+        basketball.motion = basketball.motion.plus([Math.sin(direction) * speed, 0, Math.cos(direction) * speed]);
+        basketball.roll += (basketball.roll < 0) ? 360 : 0;
+    }
+
+    var actionVector = basketball.displacement.minus(football.displacement);
+
+    if (actionVector.magnitude() <= 4) {
+        var reactionVector = actionVector.scale(-1);
+
+        var basketballForce = reactionVector.unit().scale(basketball.motion.scale(basketball.motion.cosFrom(reactionVector) || 0).magnitude());
+        var footballForce = actionVector.unit().scale(football.motion.scale(football.motion.cosFrom(actionVector) || 0).magnitude());
+
+        var dribbleMagnitude = basketballForce.magnitude();
+        var kickMagnitude = footballForce.magnitude();
+
+        if (dribbleMagnitude > kickMagnitude) {
+            basketball.score += basketballForce.minus(footballForce).magnitude();
+            if (basketball.score > 100) {
+                basketball.score = 100;
+            }
+        } else if (kickMagnitude > dribbleMagnitude) {
+            football.score += footballForce.minus(basketballForce).magnitude();
+            if (football.score > 100) {
+                football.score = 100;
+            }
+        }
+
+        basketball.motion = basketball.motion.plus(footballForce);
+
+        football.motion = football.motion.plus(basketballForce);
+        football.motion[1] = 0;
+
+        audio.hit.play();
+    }
+
+    td.drawImage(image.kick, 50, 50);
+    td.drawImage(image.dribble, canvas.width - 150, 50);
+
+    var painter = canvas.getPainter("basketball");
+
+    if (basketball.score === 100) {
+        var x = (canvas.width - image.win.width) / 2;
+        td.drawImage(image.win, x, 0);
+
+        painter.addPath("win", [
+            ["rect", x, 0, image.win.width, image.win.height],
+        ], false).click = function () {
+            resetGame();
+
+            clearInterval(scene);
+
+            td.canvas.style.cursor = "default";
+
+            scene = setInterval(function () {
+                canvas.getPainter("title").paint();
+            }, 40);
+        };
+    } else if (football.score === 100) {
+        var x = (canvas.width - image.lose.width) / 2;
+        td.drawImage(image.lose, x, 0);
+
+        painter.addPath("lose", [
+            ["rect", x, 0, image.lose.width, image.lose.height],
+        ], false).click = function () {
+            resetGame();
+
+            clearInterval(scene);
+
+            td.canvas.style.cursor = "default";
+
+            scene = setInterval(function () {
+                canvas.getPainter("title").paint();
+            }, 40);
+        };
+    }
+
+    var footballGradient = td.createRadialGradient(100, 100, 65, 100, 100, 75);
+    footballGradient.addColorStop(0, "#FF912C");
+    footballGradient.addColorStop(1, "#F27004");
+    td.fillStyle = footballGradient;
+
+    var footballBar;
+
+    switch (football.score) {
+    case 0:
+        footballBar = 0;
+        break;
+    case 100:
+        footballBar = 2 * Math.PI;
+        break;
+    default:
+        footballBar = 2 * Math.PI - football.score * Math.PI / 50;
+    }
+
+    td.beginPath();
+    td.arc(100, 100, 60, 0, footballBar, true);
+    td.arc(100, 100, 80, footballBar, 0, false);
+    td.closePath();
+    td.fill();
+
+    var x = canvas.width - 100
+
+
+    var basketballBar;
+
+    switch (basketball.score) {
+    case 0:
+        basketballBar = 0;
+        break;
+    case 100:
+        basketballBar = 2 * Math.PI;
+        break;
+    default:
+        basketballBar = 2 * Math.PI - basketball.score * Math.PI / 50;
+    }
+
+    var basketballGradient = td.createRadialGradient(x, 100, 65, x, 100, 75);
+    basketballGradient.addColorStop(0, "#FF912C");
+    basketballGradient.addColorStop(1, "#F27004");
+    td.fillStyle = basketballGradient;
+
+    td.beginPath();
+    td.arc(x, 100, 60, 0, basketballBar, true);
+    td.arc(x, 100, 80, basketballBar, 0, false);
+    td.closePath();
+    td.fill();
+
+    football.pitch += football.motion[2] * 100;
+    if (football.pitch < 0) {
+        football.pitch += 360;
+    } else if (football.pitch >= 360) {
+        football.pitch -= 360;
+    }
+
+    football.roll += football.motion[0] * 100;
+    if (football.roll < 0) {
+        football.roll += 360;
+    } else if (football.roll >= 360) {
+        football.roll -= 360;
+    }
+
+    basketball.displacement = basketball.displacement.plus(basketball.motion);
+    football.displacement = football.displacement.plus(football.motion);
+
+    camera.center[0] += basketball.motion[0];
+    camera.center[2] += basketball.motion[2];
+
+    if (basketball.displacement[0] > 38) {
+        basketball.displacement[0] = camera.center[0] = 38;
+        basketball.motion = [-1, 0, 0].reflect(basketball.motion);
+        audio.fence.play();
+    } else if (basketball.displacement[0] < -38) {
+        basketball.displacement[0] = camera.center[0] = -38;
+        basketball.motion = [1, 0, 0].reflect(basketball.motion);
+        audio.wall.play();
+    }
+
+    if (basketball.displacement[2] > 78) {
+        basketball.displacement[2] = camera.center[2] = 78;
+        basketball.motion = [0, 0, -1].reflect(basketball.motion);
+        audio.wall.play();
+    } else if (basketball.displacement[2] < -78) {
+        basketball.displacement[2] = camera.center[2] = -78;
+        basketball.motion = [0, 0, 1].reflect(basketball.motion);
+        audio.wall.play();
+    }
+
+    if (football.displacement[0] > 38) {
+        football.displacement[0] = 38;
+        football.motion = [-1, 0, 0].reflect(football.motion);
+        audio.fence.play();
+    } else if (football.displacement[0] < -38) {
+        football.displacement[0] = -38;
+        football.motion = [1, 0, 0].reflect(football.motion);
+        audio.wall.play();
+    }
+
+    if (football.displacement[2] > 78) {
+        football.displacement[2] = 78;
+        football.motion = [0, 0, -1].reflect(football.motion);
+        audio.wall.play();
+    } else if (football.displacement[2] < -78) {
+        football.displacement[2] = -78;
+        football.motion = [0, 0, 1].reflect(football.motion);
+        audio.wall.play();
+    }
+
+    camera.eye[0] = (Math.sin(heading) * 10) + camera.center[0];
+    camera.eye[2] = (Math.cos(heading) * 10) + camera.center[2];
+
+    gl.disable(gl.BLEND);
+
+    gl.viewport(0, 0, canvas.width, canvas.height);
+
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    gl.setIdentity();
+
+    gl.Perspective(90, canvas.width / canvas.height, 0.1, 1000);
+
+    gl.LookAt(camera.eye, camera.center, camera.up);
+
+    draw(mesh.floor, texture.floorColor, texture.floorNormal);
+    draw(mesh.wall, texture.wallColor, texture.wallNormal);
+    draw(mesh.alley, texture.alleyColor, texture.alleyNormal);
+
+    gl.save();
+
+    gl.Translate(basketball.displacement[0], basketball.displacement[1], basketball.displacement[2]);
+    gl.RotateX(basketball.pitch);
+    gl.RotateZ(basketball.roll);
+    gl.RotateY(basketball.yaw);
+
+    draw(mesh.basketball, texture.basketballColor, texture.basketballNormal);
+
+    gl.restore();
+
+    gl.save();
+
+    gl.Translate(football.displacement[0], football.displacement[1], football.displacement[2]);
+    gl.RotateX(football.pitch);
+    gl.RotateZ(football.roll);
+    gl.RotateY(football.yaw);
+
+    draw(mesh.football, texture.footballColor, texture.footballNormal);
+
+    gl.restore();
+
+    gl.enable(gl.BLEND);
+
+    draw(mesh.fence, texture.fenceColor, texture.fenceNormal);
+}
+
+ASTEROID.init = function (canvas, webglPallete) {
+    if (webglPallete) {
+        var painter = canvas.createPainter("loading", loading);
+
+        var attributes = ["vertexCoord", "position", "normal", "tangent", "bitangent"];
+        var uniforms = ["lightPosition", "perspectiveMatrix", "modelViewMatrix", "normalMatrix", "textureMap", "normalMap", "ambientColor", "diffuseColor", "specularColor", "shininess"];
+
+        function load() {
+            progress.loaded++;
+            painter.paint();
+        }
+
+        canvas.addProgram("normal", attributes, uniforms, load);
+
+        canvas.addModel("floor", load);
+        canvas.addModel("wall", load);
+        canvas.addModel("alley", load);
+        canvas.addModel("fence", load);
+
+        canvas.createSphere("football", 2);
+        canvas.createSphere("basketball", 2);
+
+        canvas.addTexture("floor_texture", "png", Filter.MIPMAP, load);
+        canvas.addTexture("floor_normal", "png", Filter.MIPMAP, load);
+
+        canvas.addTexture("wall_texture", "jpg", Filter.MIPMAP, load);
+        canvas.addTexture("wall_normal", "png", Filter.MIPMAP, load);
+
+        canvas.addTexture("alley_texture", "png", Filter.MIPMAP, load);
+        canvas.addTexture("alley_normal", "png", Filter.MIPMAP, load);
+
+        canvas.addTexture("fence_texture", "png", Filter.MIPMAP, load);
+        canvas.addTexture("fence_normal", "png", Filter.MIPMAP, load);
+
+        canvas.addTexture("football_texture", "jpg", Filter.MIPMAP, load);
+        canvas.addTexture("football_normal", "png", Filter.MIPMAP, load);
+
+        canvas.addTexture("basketball_texture", "jpg", Filter.MIPMAP, load);
+        canvas.addTexture("basketball_normal", "png", Filter.MIPMAP, load);
+    }
+}
+
+window.addEventListener("DOMContentLoaded", function () {
+    try {
+        function resize() {
+            document.body.style.height = window.innerHeight + "px";
+        }
+
+        resize();
+
+        window.addEventListener("resize", resize, false);
+
+        ASTEROID.start({
+            autoFullscreen: true,
+            easelElement: document.getElementById("easel"),
+            easelWidth: 1024
+        });
+    } catch (error) {
+        switch (error) {
+        case "NO_WEBGL":
+            break;
+        default:
+            alert(error);
+        }
+    }
+}, false);
+</script>
+</head>
+<body>
+<div id="easel"></div>
+</body>
+</html>
